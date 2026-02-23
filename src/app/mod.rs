@@ -4,6 +4,7 @@ pub(crate) mod cronjobs;
 pub(crate) mod daemonsets;
 pub(crate) mod deployments;
 pub(crate) mod dynamic;
+pub(crate) mod events;
 pub(crate) mod ingress;
 pub(crate) mod jobs;
 pub(crate) mod key_binding;
@@ -23,6 +24,7 @@ pub(crate) mod serviceaccounts;
 pub(crate) mod statefulsets;
 pub(crate) mod storageclass;
 pub(crate) mod svcs;
+pub(crate) mod troubleshoot;
 mod utils;
 
 use anyhow::anyhow;
@@ -40,6 +42,7 @@ use self::{
   daemonsets::KubeDaemonSet,
   deployments::KubeDeployment,
   dynamic::{KubeDynamicKind, KubeDynamicResource},
+  events::KubeEvent,
   ingress::KubeIngress,
   jobs::KubeJob,
   key_binding::DEFAULT_KEYBINDING,
@@ -82,6 +85,7 @@ pub enum ActiveBlock {
   Yaml,
   Contexts,
   Utilization,
+  Troubleshoot,
   Jobs,
   DaemonSets,
   CronJobs,
@@ -98,6 +102,7 @@ pub enum ActiveBlock {
   Pv,
   NetworkPolicies,
   ServiceAccounts,
+  Events,
   More,
   DynamicView,
 }
@@ -107,6 +112,7 @@ pub enum RouteId {
   Home,
   Contexts,
   Utilization,
+  Troubleshoot,
   HelpMenu,
 }
 
@@ -139,6 +145,7 @@ pub struct Data {
   pub logs: LogsState,
   pub describe_out: ScrollableTxt,
   pub metrics: StatefulTable<(Vec<String>, Option<QtyByQualifier>)>,
+  pub troubleshoot_findings: StatefulTable<troubleshoot::DisplayFinding>,
   pub namespaces: StatefulTable<KubeNs>,
   pub nodes: StatefulTable<KubeNode>,
   pub pods: StatefulTable<KubePod>,
@@ -163,6 +170,7 @@ pub struct Data {
   pub pvs: StatefulTable<KubePV>,
   pub nw_policies: StatefulTable<KubeNetworkPolicy>,
   pub service_accounts: StatefulTable<KubeSvcAcct>,
+  pub events: StatefulTable<KubeEvent>,
   pub dynamic_kinds: Vec<KubeDynamicKind>,
   pub dynamic_resources: StatefulTable<KubeDynamicResource>,
 }
@@ -243,6 +251,7 @@ impl Default for Data {
       logs: LogsState::new(String::default()),
       describe_out: ScrollableTxt::new(),
       metrics: StatefulTable::new(),
+      troubleshoot_findings: StatefulTable::new(),
       nodes: StatefulTable::new(),
       pods: StatefulTable::new(),
       containers: StatefulTable::new(),
@@ -266,6 +275,7 @@ impl Default for Data {
       pvs: StatefulTable::new(),
       nw_policies: StatefulTable::new(),
       service_accounts: StatefulTable::new(),
+      events: StatefulTable::new(),
       dynamic_kinds: vec![],
       dynamic_resources: StatefulTable::new(),
     }
@@ -307,6 +317,16 @@ impl Default for App {
           route: Route {
             active_block: ActiveBlock::Utilization,
             id: RouteId::Utilization,
+          },
+        },
+        TabRoute {
+          title: format!(
+            "Troubleshoot {}",
+            DEFAULT_KEYBINDING.jump_to_troubleshoot.key
+          ),
+          route: Route {
+            active_block: ActiveBlock::Troubleshoot,
+            id: RouteId::Troubleshoot,
           },
         },
       ]),
@@ -411,6 +431,7 @@ impl Default for App {
         ),
         ("ServiceAccounts".into(), ActiveBlock::ServiceAccounts),
         ("Ingresses".into(), ActiveBlock::Ingress),
+        ("Events".into(), ActiveBlock::Events),
         ("NetworkPolicies".into(), ActiveBlock::NetworkPolicies),
       ]),
       dynamic_resources_menu: StatefulList::new(),
@@ -582,6 +603,11 @@ impl App {
     self.push_navigation_route(route);
   }
 
+  pub fn route_troubleshoot(&mut self) {
+    let route = self.main_tabs.set_index(3).route.clone();
+    self.push_navigation_route(route);
+  }
+
   pub async fn dispatch_container_logs(&mut self, id: String) {
     self.data.logs = LogsState::new(id);
     self.push_navigation_stack(RouteId::Home, ActiveBlock::Logs);
@@ -617,6 +643,7 @@ impl App {
     self.dispatch(IoEvent::GetPvcs).await;
     self.dispatch(IoEvent::GetPvs).await;
     self.dispatch(IoEvent::GetServiceAccounts).await;
+    self.dispatch(IoEvent::GetEvents).await;
     self.dispatch(IoEvent::GetNetworkPolicies).await;
     self.dispatch(IoEvent::GetMetrics).await;
   }
@@ -683,6 +710,9 @@ impl App {
       ActiveBlock::ServiceAccounts => {
         self.dispatch(IoEvent::GetServiceAccounts).await;
       }
+      ActiveBlock::Events => {
+        self.dispatch(IoEvent::GetEvents).await;
+      }
       ActiveBlock::DynamicResource => {
         self.dispatch(IoEvent::GetDynamicRes).await;
       }
@@ -708,6 +738,7 @@ impl App {
       self.cache_all_resource_data().await;
       self.refresh = false;
     }
+
     // make network requests only in intervals to avoid hogging up the network
     if self.tick_count % self.tick_until_poll == 0 || self.is_routing {
       // make periodic network calls based on active route and active block to avoid hogging
@@ -730,6 +761,9 @@ impl App {
         }
         RouteId::Utilization => {
           self.dispatch(IoEvent::GetMetrics).await;
+        }
+        RouteId::Troubleshoot => {
+          self.dispatch(IoEvent::GetTroubleshootFindings).await;
         }
         _ => {}
       }
@@ -858,6 +892,7 @@ mod tests {
       sync_io_rx.recv().await.unwrap(),
       IoEvent::GetServiceAccounts
     );
+    assert_eq!(sync_io_rx.recv().await.unwrap(), IoEvent::GetEvents);
     assert_eq!(
       sync_io_rx.recv().await.unwrap(),
       IoEvent::GetNetworkPolicies

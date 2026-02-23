@@ -8,6 +8,7 @@ use crate::{
     key_binding::DEFAULT_KEYBINDING,
     models::{KubeResource, Scrollable, ScrollableTxt, StatefulTable},
     secrets::KubeSecret,
+    troubleshoot::ResourceKind,
     ActiveBlock, App, InputMode, Route, RouteId,
   },
   cmd::IoCmdEvent,
@@ -63,6 +64,9 @@ pub async fn handle_key_events(key: Key, key_event: KeyEvent, app: &mut App) {
       }
       _ if key == DEFAULT_KEYBINDING.jump_to_utilization.key => {
         app.route_utilization();
+      }
+      _ if key == DEFAULT_KEYBINDING.jump_to_troubleshoot.key => {
+        app.route_troubleshoot();
       }
       _ if key == DEFAULT_KEYBINDING.cycle_main_views.key => {
         app.cycle_main_routes();
@@ -634,6 +638,21 @@ async fn handle_route_events(key: Key, app: &mut App) {
             .await;
           }
         }
+        ActiveBlock::Events => {
+          if let Some(res) = handle_block_action(key, &app.data.events) {
+            let _ok = handle_describe_decode_or_yaml_action(
+              key,
+              app,
+              &res,
+              IoCmdEvent::GetDescribe {
+                kind: "event".to_owned(),
+                value: res.name.to_owned(),
+                ns: Some(res.namespace.to_owned()),
+              },
+            )
+            .await;
+          }
+        }
         ActiveBlock::NetworkPolicies => {
           if let Some(res) = handle_block_action(key, &app.data.nw_policies) {
             let _ok = handle_describe_decode_or_yaml_action(
@@ -649,7 +668,10 @@ async fn handle_route_events(key: Key, app: &mut App) {
             .await;
           }
         }
-        ActiveBlock::Contexts | ActiveBlock::Utilization | ActiveBlock::Help => { /* Do nothing */ }
+        ActiveBlock::Contexts
+        | ActiveBlock::Utilization
+        | ActiveBlock::Troubleshoot
+        | ActiveBlock::Help => { /* Do nothing */ }
       }
     }
     RouteId::Contexts => {
@@ -672,6 +694,71 @@ async fn handle_route_events(key: Key, app: &mut App) {
           app.utilization_group_by.pop();
         }
         app.tick_count = 0; // to force network request
+      }
+    }
+    RouteId::Troubleshoot => {
+      if key == DEFAULT_KEYBINDING.submit.key || key == DEFAULT_KEYBINDING.describe_resource.key {
+        if let Some(finding) = handle_block_action(key, &app.data.troubleshoot_findings) {
+          let (kind, value, ns) = finding.describe_target();
+          app.data.describe_out = ScrollableTxt::new();
+          app.push_navigation_stack(RouteId::Troubleshoot, ActiveBlock::Describe);
+          app
+            .dispatch_cmd(IoCmdEvent::GetDescribe {
+              kind: kind.to_owned(),
+              value: value.to_owned(),
+              ns: ns.map(str::to_owned),
+            })
+            .await;
+        }
+      } else if key == DEFAULT_KEYBINDING.resource_yaml.key {
+        if let Some(finding) = handle_block_action(key, &app.data.troubleshoot_findings) {
+          let yaml = match finding.resource_kind {
+            ResourceKind::Pod => app
+              .data
+              .pods
+              .items
+              .iter()
+              .find(|p| {
+                p.name == finding.describe_name
+                  && finding
+                    .describe_namespace
+                    .as_deref()
+                    .is_none_or(|ns| p.namespace == ns)
+              })
+              .map(|p| p.resource_to_yaml())
+              .unwrap_or_default(),
+            ResourceKind::Pvc => app
+              .data
+              .pvcs
+              .items
+              .iter()
+              .find(|pvc| {
+                pvc.name == finding.describe_name
+                  && finding
+                    .describe_namespace
+                    .as_deref()
+                    .is_none_or(|ns| pvc.namespace == ns)
+              })
+              .map(|pvc| pvc.resource_to_yaml())
+              .unwrap_or_default(),
+            ResourceKind::ReplicaSet => app
+              .data
+              .replica_sets
+              .items
+              .iter()
+              .find(|rs| {
+                rs.name == finding.describe_name
+                  && finding
+                    .describe_namespace
+                    .as_deref()
+                    .is_none_or(|ns| rs.namespace == ns)
+              })
+              .map(|rs| rs.resource_to_yaml())
+              .unwrap_or_default(),
+          };
+          app.data.describe_out = ScrollableTxt::with_string(yaml);
+          app.push_navigation_stack(RouteId::Troubleshoot, ActiveBlock::Yaml);
+        }
       }
     }
     RouteId::HelpMenu => { /* Do nothing */ }
@@ -720,10 +807,12 @@ async fn handle_block_scroll(app: &mut App, up: bool, is_mouse: bool, page: bool
     ActiveBlock::Pv => app.data.pvs.handle_scroll(up, page),
     ActiveBlock::Ingress => app.data.ingress.handle_scroll(up, page),
     ActiveBlock::ServiceAccounts => app.data.service_accounts.handle_scroll(up, page),
+    ActiveBlock::Events => app.data.events.handle_scroll(up, page),
     ActiveBlock::NetworkPolicies => app.data.nw_policies.handle_scroll(up, page),
     ActiveBlock::DynamicResource => app.data.dynamic_resources.handle_scroll(up, page),
     ActiveBlock::Contexts => app.data.contexts.handle_scroll(up, page),
     ActiveBlock::Utilization => app.data.metrics.handle_scroll(up, page),
+    ActiveBlock::Troubleshoot => app.data.troubleshoot_findings.handle_scroll(up, page),
     ActiveBlock::Help => app.help_docs.handle_scroll(up, page),
     ActiveBlock::More => app.more_resources_menu.handle_scroll(up, page),
     ActiveBlock::DynamicView => app.dynamic_resources_menu.handle_scroll(up, page),
