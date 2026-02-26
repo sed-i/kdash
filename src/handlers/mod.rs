@@ -64,6 +64,9 @@ pub async fn handle_key_events(key: Key, key_event: KeyEvent, app: &mut App) {
       _ if key == DEFAULT_KEYBINDING.jump_to_utilization.key => {
         app.route_utilization();
       }
+      _ if key == DEFAULT_KEYBINDING.jump_to_troubleshoot.key => {
+        app.route_troubleshoot();
+      }
       _ if key == DEFAULT_KEYBINDING.cycle_main_views.key => {
         app.cycle_main_routes();
       }
@@ -649,7 +652,10 @@ async fn handle_route_events(key: Key, app: &mut App) {
             .await;
           }
         }
-        ActiveBlock::Contexts | ActiveBlock::Utilization | ActiveBlock::Help => { /* Do nothing */ }
+        ActiveBlock::Contexts
+        | ActiveBlock::Utilization
+        | ActiveBlock::Troubleshoot
+        | ActiveBlock::Help => { /* Do nothing */ }
       }
     }
     RouteId::Contexts => {
@@ -672,6 +678,22 @@ async fn handle_route_events(key: Key, app: &mut App) {
           app.utilization_group_by.pop();
         }
         app.tick_count = 0; // to force network request
+      }
+    }
+    RouteId::Troubleshoot => {
+      if key == DEFAULT_KEYBINDING.submit.key || key == DEFAULT_KEYBINDING.describe_resource.key {
+        if let Some(finding) = handle_block_action(key, &app.data.troubleshoot_findings) {
+          let (kind, value, ns) = finding.describe_target();
+          app.data.describe_out = ScrollableTxt::new();
+          app.push_navigation_stack(RouteId::Troubleshoot, ActiveBlock::Describe);
+          app
+            .dispatch_cmd(IoCmdEvent::GetDescribe {
+              kind: kind.to_owned(),
+              value: value.to_owned(),
+              ns: ns.map(str::to_owned),
+            })
+            .await;
+        }
       }
     }
     RouteId::HelpMenu => { /* Do nothing */ }
@@ -724,6 +746,7 @@ async fn handle_block_scroll(app: &mut App, up: bool, is_mouse: bool, page: bool
     ActiveBlock::DynamicResource => app.data.dynamic_resources.handle_scroll(up, page),
     ActiveBlock::Contexts => app.data.contexts.handle_scroll(up, page),
     ActiveBlock::Utilization => app.data.metrics.handle_scroll(up, page),
+    ActiveBlock::Troubleshoot => app.data.troubleshoot_findings.handle_scroll(up, page),
     ActiveBlock::Help => app.help_docs.handle_scroll(up, page),
     ActiveBlock::More => app.more_resources_menu.handle_scroll(up, page),
     ActiveBlock::DynamicView => app.dynamic_resources_menu.handle_scroll(up, page),
