@@ -24,7 +24,7 @@ pub(crate) mod statefulsets;
 pub(crate) mod storageclass;
 pub(crate) mod svcs;
 pub(crate) mod troubleshoot;
-pub(crate) mod troubleshoot_rules;
+pub(crate) mod troubleshoot_pod;
 mod utils;
 
 use anyhow::anyhow;
@@ -143,7 +143,7 @@ pub struct Data {
   pub logs: LogsState,
   pub describe_out: ScrollableTxt,
   pub metrics: StatefulTable<(Vec<String>, Option<QtyByQualifier>)>,
-  pub troubleshoot_findings: StatefulTable<troubleshoot::Finding>,
+  pub troubleshoot_findings: StatefulTable<troubleshoot::DisplayFinding>,
   pub namespaces: StatefulTable<KubeNs>,
   pub nodes: StatefulTable<KubeNode>,
   pub pods: StatefulTable<KubePod>,

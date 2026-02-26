@@ -8,7 +8,7 @@ use strum::Display;
 
 use super::{
   models::{AppResource, KubeResource, StatefulTable},
-  troubleshoot_rules, ActiveBlock, App,
+  troubleshoot_pod, ActiveBlock, App,
 };
 use crate::ui::utils::{
   draw_describe_block, draw_resource_block, get_resource_title, style_failure, style_primary,
@@ -16,64 +16,94 @@ use crate::ui::utils::{
 };
 
 // ---------------------------------------------------------------------------
-// Core types
+// Core generic finding type
 // ---------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, Display, Eq, PartialEq)]
-#[allow(dead_code)]
-pub enum Severity {
-  Critical,
-  Warn,
-  Info,
+/// A finding produced by a troubleshooting check.
+///
+/// The variant encodes the severity while `R` carries resource-specific data
+/// (e.g. `PodFinding`).
+///
+/// Variant declaration order encodes sort priority via derived `Ord`:
+/// `Error` (most severe) < `Warn` < `Info` (least severe), so a normal
+/// ascending sort puts errors first.
+#[derive(Clone, Debug, Display, Eq, Ord, PartialEq, PartialOrd)]
+pub enum Finding<R> {
+  Error(R),
+  Warn(R),
+  Info(R),
 }
 
-#[derive(Clone, Copy, Debug, Display, Eq, PartialEq)]
 #[allow(dead_code)]
-pub enum Category {
-  Workloads,
-  Nodes,
-  Storage,
-  Networking,
+impl<R> Finding<R> {
+  /// Returns a data-less copy that preserves only the severity variant.
+  /// Useful for storing in type-erased contexts like `DisplayFinding`.
+  pub fn severity_tag(&self) -> Finding<()> {
+    match self {
+      Finding::Error(_) => Finding::Error(()),
+      Finding::Warn(_) => Finding::Warn(()),
+      Finding::Info(_) => Finding::Info(()),
+    }
+  }
+
+  /// Returns a reference to the inner resource finding.
+  pub fn inner(&self) -> &R {
+    match self {
+      Finding::Info(r) | Finding::Warn(r) | Finding::Error(r) => r,
+    }
+  }
+
+  /// Consumes the finding and returns the inner resource finding.
+  pub fn into_inner(self) -> R {
+    match self {
+      Finding::Info(r) | Finding::Warn(r) | Finding::Error(r) => r,
+    }
+  }
 }
 
-#[derive(Clone, Copy, Debug, Display, Eq, PartialEq)]
-pub enum Scope {
-  Cluster,
-  Namespace,
-}
+// ---------------------------------------------------------------------------
+// Display enums shared across resource-specific findings
+// ---------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug, Display, Eq, PartialEq)]
 pub enum ResourceKind {
   Pod,
-  Deployment,
-  Node,
-  #[strum(serialize = "PVC")]
-  Pvc,
+  // Deployment,
+  // Node,
+  // #[strum(serialize = "PVC")]
+  // Pvc,
 }
 
 // ---------------------------------------------------------------------------
-// Finding — a single detected issue
+// DisplayFinding — the concrete, type-erased row stored in StatefulTable
 // ---------------------------------------------------------------------------
 
+/// A flattened, UI-ready representation of any resource finding.
+///
+/// Resource-specific `Finding<R>` values are converted into this type via
+/// the [`IntoDisplayFinding`] trait so they can be stored in a single
+/// homogeneous `StatefulTable<DisplayFinding>`.
+///
+/// The `severity` field is a `Finding<()>` — the same `Finding` enum with
+/// no payload — which gives us `Ord` for sorting and `Display` for rendering
+/// without introducing a redundant severity type.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Finding {
-  pub id: String,
-  pub title: String,
-  pub severity: Severity,
-  pub category: Category,
-  pub scope: Scope,
-  pub namespace: Option<String>,
+pub struct DisplayFinding {
+  pub severity: Finding<()>,
+  pub reason: String,
   pub resource_kind: ResourceKind,
+  pub namespace: Option<String>,
   pub resource_name: String,
   pub message: String,
   pub age: String,
   pub describe_kind: String,
   pub describe_name: String,
   pub describe_namespace: Option<String>,
+  // Unit k8s_obj kept for KubeResource trait compatibility
   pub(crate) k8s_obj: (),
 }
 
-impl Finding {
+impl DisplayFinding {
   pub fn resource_ref(&self) -> String {
     match &self.namespace {
       Some(ns) if !ns.is_empty() => format!("{}/{}", ns, self.resource_name),
@@ -90,7 +120,7 @@ impl Finding {
   }
 }
 
-impl KubeResource<()> for Finding {
+impl KubeResource<()> for DisplayFinding {
   fn get_name(&self) -> &String {
     &self.resource_name
   }
@@ -101,109 +131,37 @@ impl KubeResource<()> for Finding {
 }
 
 // ---------------------------------------------------------------------------
-// Rule & Ruleset — the embedded DSL building blocks
+// Conversion trait — resource findings → display findings
 // ---------------------------------------------------------------------------
 
-#[derive(Clone)]
-#[allow(dead_code)]
-pub struct Rule {
-  pub id: &'static str,
-  pub title: &'static str,
-  pub severity: Severity,
-  pub category: Category,
-  pub scope: Scope,
-  pub resources: Vec<ResourceKind>,
-  pub enabled: bool,
-  pub evaluate: fn(&App) -> Vec<Finding>,
-}
-
-impl Rule {
-  pub fn new(
-    id: &'static str,
-    title: &'static str,
-    severity: Severity,
-    category: Category,
-    scope: Scope,
-    resources: Vec<ResourceKind>,
-    evaluate: fn(&App) -> Vec<Finding>,
-  ) -> Self {
-    Self {
-      id,
-      title,
-      severity,
-      category,
-      scope,
-      resources,
-      enabled: true,
-      evaluate,
-    }
-  }
-}
-
-#[allow(dead_code)]
-pub struct Ruleset {
-  pub id: &'static str,
-  pub title: &'static str,
-  pub description: &'static str,
-  pub enabled: bool,
-  pub rules: Vec<Rule>,
-}
-
-impl Ruleset {
-  pub fn new(id: &'static str, title: &'static str, description: &'static str) -> Self {
-    Self {
-      id,
-      title,
-      description,
-      enabled: true,
-      rules: vec![],
-    }
-  }
-
-  pub fn rule(mut self, rule: Rule) -> Self {
-    self.rules.push(rule);
-    self
-  }
-
-  pub fn evaluate(&self, app: &App) -> Vec<Finding> {
-    if !self.enabled {
-      return vec![];
-    }
-    self
-      .rules
-      .iter()
-      .filter(|r| r.enabled)
-      .flat_map(|r| (r.evaluate)(app))
-      .collect()
-  }
+/// Implement this trait on `Finding<R>` for each resource-specific finding
+/// type `R` to enable conversion into `DisplayFinding`.
+pub trait IntoDisplayFinding {
+  fn into_display_finding(self) -> DisplayFinding;
 }
 
 // ---------------------------------------------------------------------------
 // Evaluation orchestrator
 // ---------------------------------------------------------------------------
 
-pub fn evaluate_findings(app: &App) -> Vec<Finding> {
-  let mut findings: Vec<Finding> = troubleshoot_rules::built_in_rulesets()
-    .into_iter()
-    .flat_map(|rs| rs.evaluate(app))
-    .collect();
+pub fn evaluate_findings(app: &App) -> Vec<DisplayFinding> {
+  let mut findings: Vec<DisplayFinding> = Vec::new();
+
+  // Collect pod findings
+  findings.extend(troubleshoot_pod::evaluate_pod_findings(
+    &app.data.pods.items,
+  ));
+
+  // Future: findings.extend(troubleshoot_node::evaluate_node_findings(...));
+  // Future: findings.extend(troubleshoot_deployment::evaluate_deployment_findings(...));
 
   findings.sort_by(|a, b| {
-    severity_rank(&a.severity)
-      .cmp(&severity_rank(&b.severity))
-      .then_with(|| a.category.to_string().cmp(&b.category.to_string()))
+    a.severity
+      .cmp(&b.severity)
       .then_with(|| a.resource_name.cmp(&b.resource_name))
   });
 
   findings
-}
-
-fn severity_rank(severity: &Severity) -> u8 {
-  match severity {
-    Severity::Critical => 0,
-    Severity::Warn => 1,
-    Severity::Info => 2,
-  }
 }
 
 #[allow(dead_code)]
@@ -212,7 +170,7 @@ pub fn findings_count(app: &App) -> usize {
 }
 
 #[allow(dead_code)]
-pub fn update_findings(app: &App, table: &mut StatefulTable<Finding>) {
+pub fn update_findings(app: &App, table: &mut StatefulTable<DisplayFinding>) {
   let items = evaluate_findings(app);
   table.set_items(items);
 }
@@ -240,29 +198,25 @@ pub fn render_troubleshoot(f: &mut Frame<'_>, app: &mut App, area: Rect) {
       title,
       inline_help: "| describe <d> | refresh <ctrl+r> ".into(),
       resource: findings,
-      table_headers: vec![
-        "Severity", "Category", "Scope", "Resource", "Message", "Age",
-      ],
+      table_headers: vec!["Severity", "Reason", "Resource", "Message", "Age"],
       column_widths: vec![
-        Constraint::Percentage(10),
+        Constraint::Percentage(8),
         Constraint::Percentage(15),
-        Constraint::Percentage(10),
         Constraint::Percentage(20),
-        Constraint::Percentage(35),
-        Constraint::Percentage(10),
+        Constraint::Percentage(45),
+        Constraint::Percentage(12),
       ],
     },
     |c| {
       let style = match c.severity {
-        Severity::Critical => style_failure(light_theme),
-        Severity::Warn => style_warning(light_theme),
-        Severity::Info => style_primary(light_theme),
+        Finding::Error(()) => style_failure(light_theme),
+        Finding::Warn(()) => style_warning(light_theme),
+        Finding::Info(()) => style_primary(light_theme),
       };
 
       Row::new(vec![
         Cell::from(c.severity.to_string()),
-        Cell::from(c.category.to_string()),
-        Cell::from(c.scope.to_string()),
+        Cell::from(c.reason.clone()),
         Cell::from(format!("{} {}", c.resource_kind, c.resource_ref())),
         Cell::from(c.message.clone()),
         Cell::from(c.age.clone()),
