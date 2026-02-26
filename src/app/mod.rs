@@ -317,7 +317,7 @@ impl Default for App {
         },
         TabRoute {
           title: format!(
-            "Troubleshoot (0 issues) {}",
+            "Troubleshoot {}",
             DEFAULT_KEYBINDING.jump_to_troubleshoot.key
           ),
           route: Route {
@@ -731,14 +731,7 @@ impl App {
     }
 
     let findings = troubleshoot::evaluate_findings(self);
-    let findings_count = findings.len();
     self.data.troubleshoot_findings.set_items(findings);
-    if let Some(tab) = self.main_tabs.items.get_mut(3) {
-      tab.title = format!(
-        "Troubleshoot ({} issues) {}",
-        findings_count, DEFAULT_KEYBINDING.jump_to_troubleshoot.key
-      );
-    }
 
     // make network requests only in intervals to avoid hogging up the network
     if self.tick_count % self.tick_until_poll == 0 || self.is_routing {
