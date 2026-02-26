@@ -1,3 +1,5 @@
+use k8s_openapi::api::core::v1::PodCondition;
+
 use super::{
   models::KubeResource,
   pods::KubePod,
@@ -46,17 +48,6 @@ impl IntoDisplayFinding for Finding<PodFinding> {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Extract `pod.status.reason`, falling back to `"N/A"`.
-fn pod_status_reason(pod: &KubePod) -> String {
-  pod
-    .get_k8s_obj()
-    .status
-    .as_ref()
-    .and_then(|s| s.reason.as_deref())
-    .unwrap_or("N/A")
-    .into()
-}
-
 /// Extract `pod.status.phase`, falling back to `"Unknown"`.
 fn pod_phase(pod: &KubePod) -> &str {
   pod
@@ -67,13 +58,36 @@ fn pod_phase(pod: &KubePod) -> &str {
     .unwrap_or("Unknown")
 }
 
-/// Extract `pod.status.message`, falling back to `"N/A"`.
-fn pod_status_message(pod: &KubePod) -> String {
-  pod
+/// Return the most recent pod condition, sorted by `lastTransitionTime` descending.
+fn latest_condition(pod: &KubePod) -> Option<&PodCondition> {
+  let mut conditions: Vec<&PodCondition> = pod
     .get_k8s_obj()
     .status
     .as_ref()
-    .and_then(|s| s.message.as_deref())
+    .and_then(|s| s.conditions.as_ref())
+    .map(|c| c.iter().collect())
+    .unwrap_or_default();
+
+  conditions.sort_by(|a, b| {
+    b.last_transition_time
+      .cmp(&a.last_transition_time)
+  });
+
+  conditions.into_iter().next()
+}
+
+/// Extract `.reason` from the most recent pod condition, falling back to `"N/A"`.
+fn pod_status_reason(pod: &KubePod) -> String {
+  latest_condition(pod)
+    .and_then(|c| c.reason.as_deref())
+    .unwrap_or("N/A")
+    .into()
+}
+
+/// Extract `.message` from the most recent pod condition, falling back to `"N/A"`.
+fn pod_status_message(pod: &KubePod) -> String {
+  latest_condition(pod)
+    .and_then(|c| c.message.as_deref())
     .unwrap_or("N/A")
     .into()
 }
