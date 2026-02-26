@@ -11,8 +11,9 @@ use super::{
   troubleshoot_pod, ActiveBlock, App,
 };
 use crate::ui::utils::{
-  draw_describe_block, draw_resource_block, get_resource_title, style_failure, style_primary,
-  style_warning, title_with_dual_style, ResourceTableProps, COPY_HINT,
+  draw_describe_block, draw_resource_block, draw_yaml_block, get_describe_active,
+  get_resource_title, style_failure, style_primary, style_warning, title_with_dual_style,
+  ResourceTableProps, COPY_HINT, DESCRIBE_AND_YAML_HINT,
 };
 
 // ---------------------------------------------------------------------------
@@ -196,7 +197,7 @@ pub fn render_troubleshoot(f: &mut Frame<'_>, app: &mut App, area: Rect) {
     area,
     ResourceTableProps {
       title,
-      inline_help: "| describe <d> | refresh <ctrl+r> ".into(),
+      inline_help: format!("{} | refresh <ctrl+r> ", DESCRIBE_AND_YAML_HINT),
       resource: findings,
       table_headers: vec!["Severity", "Reason", "Resource", "Message", "Age"],
       column_widths: vec![
@@ -243,7 +244,22 @@ impl AppResource for TroubleshootResource {
           get_resource_title(
             app,
             "Troubleshoot",
-            "-> Describe",
+            get_describe_active(block),
+            app.data.troubleshoot_findings.items.len(),
+          ),
+          format!("{} | Troubleshoot <esc> ", COPY_HINT),
+          app.light_theme,
+        ),
+      ),
+      ActiveBlock::Yaml => draw_yaml_block(
+        f,
+        app,
+        area,
+        title_with_dual_style(
+          get_resource_title(
+            app,
+            "Troubleshoot",
+            get_describe_active(block),
             app.data.troubleshoot_findings.items.len(),
           ),
           format!("{} | Troubleshoot <esc> ", COPY_HINT),

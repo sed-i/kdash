@@ -68,10 +68,7 @@ fn latest_condition(pod: &KubePod) -> Option<&PodCondition> {
     .map(|c| c.iter().collect())
     .unwrap_or_default();
 
-  conditions.sort_by(|a, b| {
-    b.last_transition_time
-      .cmp(&a.last_transition_time)
-  });
+  conditions.sort_by(|a, b| b.last_transition_time.cmp(&a.last_transition_time));
 
   conditions.into_iter().next()
 }

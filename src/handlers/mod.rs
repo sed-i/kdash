@@ -8,6 +8,7 @@ use crate::{
     key_binding::DEFAULT_KEYBINDING,
     models::{KubeResource, Scrollable, ScrollableTxt, StatefulTable},
     secrets::KubeSecret,
+    troubleshoot::ResourceKind,
     ActiveBlock, App, InputMode, Route, RouteId,
   },
   cmd::IoCmdEvent,
@@ -693,6 +694,27 @@ async fn handle_route_events(key: Key, app: &mut App) {
               ns: ns.map(str::to_owned),
             })
             .await;
+        }
+      } else if key == DEFAULT_KEYBINDING.resource_yaml.key {
+        if let Some(finding) = handle_block_action(key, &app.data.troubleshoot_findings) {
+          let yaml = match finding.resource_kind {
+            ResourceKind::Pod => app
+              .data
+              .pods
+              .items
+              .iter()
+              .find(|p| {
+                p.name == finding.describe_name
+                  && finding
+                    .describe_namespace
+                    .as_deref()
+                    .map_or(true, |ns| p.namespace == ns)
+              })
+              .map(|p| p.resource_to_yaml())
+              .unwrap_or_default(),
+          };
+          app.data.describe_out = ScrollableTxt::with_string(yaml);
+          app.push_navigation_stack(RouteId::Troubleshoot, ActiveBlock::Yaml);
         }
       }
     }
