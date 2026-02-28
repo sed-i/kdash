@@ -121,3 +121,42 @@ pub fn evaluate_pvc_findings(pvcs: &[KubePVC]) -> Vec<DisplayFinding> {
     })
     .collect()
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use k8s_openapi::api::core::v1::{PersistentVolumeClaim, PersistentVolumeClaimStatus};
+  use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
+
+  use crate::app::test_utils::get_time;
+
+  fn build_pvc(phase: Option<&str>) -> KubePVC {
+    let pvc = PersistentVolumeClaim {
+      metadata: ObjectMeta {
+        name: Some("pvc-1".into()),
+        namespace: Some("ns-1".into()),
+        creation_timestamp: Some(get_time("2026-01-01T00:00:00Z")),
+        ..Default::default()
+      },
+      status: phase.map(|p| PersistentVolumeClaimStatus {
+        phase: Some(p.to_string()),
+        ..Default::default()
+      }),
+      ..Default::default()
+    };
+
+    KubePVC::from(pvc)
+  }
+
+  #[test]
+  fn test_pvc_phase_fallback() {
+    let pvc = build_pvc(None);
+    assert_eq!(pvc_phase(&pvc), "Unknown");
+  }
+
+  #[test]
+  fn test_check_pvc_phase_bound_is_none() {
+    let pvc = build_pvc(Some("Bound"));
+    assert!(check_pvc_phase(&pvc).is_none());
+  }
+}

@@ -7,7 +7,7 @@ use ratatui::{
 use strum::Display;
 
 use super::{
-  models::{AppResource, KubeResource, StatefulTable},
+  models::{AppResource, KubeResource},
   troubleshoot_pod, troubleshoot_pvc, troubleshoot_rs, ActiveBlock, App,
 };
 use crate::ui::utils::{
@@ -35,7 +35,6 @@ pub enum Finding<R> {
   Info(R),
 }
 
-#[allow(dead_code)]
 impl<R> Finding<R> {
   /// Returns a data-less copy that preserves only the severity variant.
   /// Useful for storing in type-erased contexts like `DisplayFinding`.
@@ -44,13 +43,6 @@ impl<R> Finding<R> {
       Finding::Error(_) => Finding::Error(()),
       Finding::Warn(_) => Finding::Warn(()),
       Finding::Info(_) => Finding::Info(()),
-    }
-  }
-
-  /// Returns a reference to the inner resource finding.
-  pub fn inner(&self) -> &R {
-    match self {
-      Finding::Info(r) | Finding::Warn(r) | Finding::Error(r) => r,
     }
   }
 
@@ -75,14 +67,14 @@ pub enum ResourceKind {
 }
 
 // ---------------------------------------------------------------------------
-// DisplayFinding — the concrete, type-erased row stored in StatefulTable
+// DisplayFinding — the concrete, type-erased row
 // ---------------------------------------------------------------------------
 
 /// A flattened, UI-ready representation of any resource finding.
 ///
 /// Resource-specific `Finding<R>` values are converted into this type via
 /// the [`IntoDisplayFinding`] trait so they can be stored in a single
-/// homogeneous `StatefulTable<DisplayFinding>`.
+/// homogeneous `DisplayFinding`.
 ///
 /// The `severity` field is a `Finding<()>` — the same `Finding` enum with
 /// no payload — which gives us `Ord` for sorting and `Display` for rendering
@@ -172,17 +164,6 @@ pub fn evaluate_findings(app: &App) -> Vec<DisplayFinding> {
   });
 
   findings
-}
-
-#[allow(dead_code)]
-pub fn findings_count(app: &App) -> usize {
-  evaluate_findings(app).len()
-}
-
-#[allow(dead_code)]
-pub fn update_findings(app: &App, table: &mut StatefulTable<DisplayFinding>) {
-  let items = evaluate_findings(app);
-  table.set_items(items);
 }
 
 // ---------------------------------------------------------------------------
@@ -281,5 +262,127 @@ impl AppResource for TroubleshootResource {
 
   async fn get_resource(_network: &crate::network::Network<'_>) {
     // no-op: findings are derived from already cached resources
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use k8s_openapi::api::apps::v1::{ReplicaSet, ReplicaSetSpec, ReplicaSetStatus};
+  use k8s_openapi::api::core::v1::{
+    PersistentVolumeClaim, PersistentVolumeClaimStatus, Pod, PodStatus,
+  };
+  use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
+
+  use crate::app::{
+    models::StatefulTable, pods::KubePod, pvcs::KubePVC, replicasets::KubeReplicaSet, Data,
+  };
+
+  fn build_pod_with_phase(name: &str, phase: &str) -> KubePod {
+    let pod = Pod {
+      metadata: ObjectMeta {
+        name: Some(name.into()),
+        namespace: Some("ns-1".into()),
+        ..Default::default()
+      },
+      status: Some(PodStatus {
+        phase: Some(phase.into()),
+        ..Default::default()
+      }),
+      ..Default::default()
+    };
+
+    KubePod::from(pod)
+  }
+
+  fn build_pvc_with_phase(name: &str, phase: &str) -> KubePVC {
+    let pvc = PersistentVolumeClaim {
+      metadata: ObjectMeta {
+        name: Some(name.into()),
+        namespace: Some("ns-1".into()),
+        ..Default::default()
+      },
+      status: Some(PersistentVolumeClaimStatus {
+        phase: Some(phase.into()),
+        ..Default::default()
+      }),
+      ..Default::default()
+    };
+
+    KubePVC::from(pvc)
+  }
+
+  fn build_rs_with_status(
+    name: &str,
+    replicas: i32,
+    available_replicas: i32,
+    fully_labeled_replicas: i32,
+    ready_replicas: i32,
+  ) -> KubeReplicaSet {
+    let status = ReplicaSetStatus {
+      replicas,
+      available_replicas: Some(available_replicas),
+      fully_labeled_replicas: Some(fully_labeled_replicas),
+      ready_replicas: Some(ready_replicas),
+      ..Default::default()
+    };
+    let rs = ReplicaSet {
+      metadata: ObjectMeta {
+        name: Some(name.into()),
+        namespace: Some("ns-1".into()),
+        ..Default::default()
+      },
+      spec: Some(ReplicaSetSpec {
+        replicas: Some(replicas),
+        ..Default::default()
+      }),
+      status: Some(status),
+    };
+
+    KubeReplicaSet::from(rs)
+  }
+
+  fn build_app_with_resources(pod: KubePod, pvc: KubePVC, rs: KubeReplicaSet) -> App {
+    App {
+      data: Data {
+        pods: StatefulTable::with_items(vec![pod]),
+        pvcs: StatefulTable::with_items(vec![pvc]),
+        replica_sets: StatefulTable::with_items(vec![rs]),
+        ..Data::default()
+      },
+      ..App::default()
+    }
+  }
+
+  /// Verifies type-erasing the payload into `()` while preserving severity.
+  #[test]
+  fn test_finding_severity_tag() {
+    let error = Finding::Error("x").severity_tag();
+    let warn = Finding::Warn("x").severity_tag();
+    let info = Finding::Info("x").severity_tag();
+
+    assert_eq!(error, Finding::Error(()));
+    assert_eq!(warn, Finding::Warn(()));
+    assert_eq!(info, Finding::Info(()));
+  }
+
+  #[test]
+  fn test_evaluate_findings_sorting() {
+    let pod = build_pod_with_phase("z-pod", "Failed");
+    let pvc = build_pvc_with_phase("b-pvc", "Pending");
+    let rs = build_rs_with_status("a-rs", 2, 1, 2, 2);
+
+    let app = build_app_with_resources(pod, pvc, rs);
+
+    let findings = evaluate_findings(&app);
+
+    // Expected order: severity asc (Error before Warn) then resource name asc.
+    assert_eq!(findings.len(), 3);
+    assert_eq!(findings[0].severity, Finding::Error(()));
+    assert_eq!(findings[0].resource_name, "z-pod");
+    assert_eq!(findings[1].severity, Finding::Warn(()));
+    assert_eq!(findings[1].resource_name, "a-rs");
+    assert_eq!(findings[2].severity, Finding::Warn(()));
+    assert_eq!(findings[2].resource_name, "b-pvc");
   }
 }

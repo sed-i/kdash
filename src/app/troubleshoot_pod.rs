@@ -162,3 +162,66 @@ pub fn evaluate_pod_findings(pods: &[KubePod]) -> Vec<DisplayFinding> {
     })
     .collect()
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use k8s_openapi::api::core::v1::{Pod, PodCondition, PodStatus};
+  use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
+
+  use crate::app::test_utils::get_time;
+
+  fn build_pod(phase: Option<&str>, conditions: Vec<PodCondition>) -> KubePod {
+    let pod = Pod {
+      metadata: ObjectMeta {
+        name: Some("pod-1".into()),
+        namespace: Some("ns-1".into()),
+        creation_timestamp: Some(get_time("2023-01-01T00:00:00Z")),
+        ..Default::default()
+      },
+      status: Some(PodStatus {
+        phase: phase.map(str::to_string),
+        conditions: if conditions.is_empty() {
+          None
+        } else {
+          Some(conditions)
+        },
+        ..Default::default()
+      }),
+      ..Default::default()
+    };
+
+    KubePod::from(pod)
+  }
+
+  #[test]
+  fn test_pod_phase_fallback_and_value() {
+    let pod_unknown = build_pod(None, vec![]);
+    assert_eq!(pod_phase(&pod_unknown), "Unknown");
+
+    let pod_running = build_pod(Some("Running"), vec![]);
+    assert_eq!(pod_phase(&pod_running), "Running");
+  }
+
+  #[test]
+  fn test_latest_condition_picks_most_recent() {
+    let older = PodCondition {
+      last_transition_time: Some(get_time("2026-01-01T00:00:00Z")),
+      reason: Some("Older".into()),
+      message: Some("Older message".into()),
+      ..Default::default()
+    };
+    let newer = PodCondition {
+      last_transition_time: Some(get_time("2026-02-01T00:00:00Z")),
+      reason: Some("Newer".into()),
+      message: Some("Newer message".into()),
+      ..Default::default()
+    };
+
+    let pod = build_pod(Some("Running"), vec![older, newer]);
+    let latest = latest_condition(&pod).expect("expected a latest condition");
+
+    assert_eq!(latest.reason.as_deref(), Some("Newer"));
+    assert_eq!(latest.message.as_deref(), Some("Newer message"));
+  }
+}

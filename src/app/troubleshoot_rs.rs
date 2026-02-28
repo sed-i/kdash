@@ -128,3 +128,59 @@ pub fn evaluate_rs_findings(replica_sets: &[KubeReplicaSet]) -> Vec<DisplayFindi
     })
     .collect()
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use k8s_openapi::api::apps::v1::{ReplicaSet, ReplicaSetSpec, ReplicaSetStatus};
+  use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
+
+  fn build_rs(status: Option<ReplicaSetStatus>) -> KubeReplicaSet {
+    let rs = ReplicaSet {
+      metadata: ObjectMeta {
+        name: Some("rs-1".into()),
+        namespace: Some("ns-1".into()),
+        ..Default::default()
+      },
+      spec: Some(ReplicaSetSpec {
+        replicas: Some(2),
+        ..Default::default()
+      }),
+      status,
+    };
+
+    KubeReplicaSet::from(rs)
+  }
+
+  #[test]
+  fn test_rs_replica_counts_defaults() {
+    let rs = build_rs(None);
+    assert_eq!(rs_replica_counts(&rs), (0, 0, 0, 0));
+  }
+
+  #[test]
+  fn test_check_rs_status_no_finding_when_equal() {
+    let status = ReplicaSetStatus {
+      replicas: 2,
+      available_replicas: Some(2),
+      fully_labeled_replicas: Some(2),
+      ready_replicas: Some(2),
+      ..Default::default()
+    };
+    let rs = build_rs(Some(status));
+    assert!(check_rs_status(&rs).is_none());
+  }
+
+  #[test]
+  fn test_check_rs_status_finding_on_mismatch() {
+    let status = ReplicaSetStatus {
+      replicas: 2,
+      available_replicas: Some(1),
+      fully_labeled_replicas: Some(2),
+      ready_replicas: Some(2),
+      ..Default::default()
+    };
+    let rs = build_rs(Some(status));
+    assert!(check_rs_status(&rs).is_some());
+  }
+}
