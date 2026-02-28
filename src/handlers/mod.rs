@@ -712,6 +712,20 @@ async fn handle_route_events(key: Key, app: &mut App) {
               })
               .map(|p| p.resource_to_yaml())
               .unwrap_or_default(),
+            ResourceKind::Pvc => app
+              .data
+              .pvcs
+              .items
+              .iter()
+              .find(|pvc| {
+                pvc.name == finding.describe_name
+                  && finding
+                    .describe_namespace
+                    .as_deref()
+                    .map_or(true, |ns| pvc.namespace == ns)
+              })
+              .map(|pvc| pvc.resource_to_yaml())
+              .unwrap_or_default(),
           };
           app.data.describe_out = ScrollableTxt::with_string(yaml);
           app.push_navigation_stack(RouteId::Troubleshoot, ActiveBlock::Yaml);
