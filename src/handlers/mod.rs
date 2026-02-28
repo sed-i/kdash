@@ -708,7 +708,7 @@ async fn handle_route_events(key: Key, app: &mut App) {
                   && finding
                     .describe_namespace
                     .as_deref()
-                    .map_or(true, |ns| p.namespace == ns)
+                    .is_none_or(|ns| p.namespace == ns)
               })
               .map(|p| p.resource_to_yaml())
               .unwrap_or_default(),
@@ -722,7 +722,7 @@ async fn handle_route_events(key: Key, app: &mut App) {
                   && finding
                     .describe_namespace
                     .as_deref()
-                    .map_or(true, |ns| pvc.namespace == ns)
+                    .is_none_or(|ns| pvc.namespace == ns)
               })
               .map(|pvc| pvc.resource_to_yaml())
               .unwrap_or_default(),
@@ -736,7 +736,7 @@ async fn handle_route_events(key: Key, app: &mut App) {
                   && finding
                     .describe_namespace
                     .as_deref()
-                    .map_or(true, |ns| rs.namespace == ns)
+                    .is_none_or(|ns| rs.namespace == ns)
               })
               .map(|rs| rs.resource_to_yaml())
               .unwrap_or_default(),
