@@ -8,7 +8,7 @@ use strum::Display;
 
 use super::{
   models::{AppResource, KubeResource, StatefulTable},
-  troubleshoot_pod, troubleshoot_pvc, ActiveBlock, App,
+  troubleshoot_pod, troubleshoot_pvc, troubleshoot_rs, ActiveBlock, App,
 };
 use crate::ui::utils::{
   draw_describe_block, draw_resource_block, draw_yaml_block, get_describe_active,
@@ -71,8 +71,7 @@ pub enum ResourceKind {
   Pod,
   #[strum(serialize = "PVC")]
   Pvc,
-  // Deployment,
-  // Node,
+  ReplicaSet,
 }
 
 // ---------------------------------------------------------------------------
@@ -156,6 +155,11 @@ pub fn evaluate_findings(app: &App) -> Vec<DisplayFinding> {
   // Collect PVC findings
   findings.extend(troubleshoot_pvc::evaluate_pvc_findings(
     &app.data.pvcs.items,
+  ));
+
+  // Collect ReplicaSet findings
+  findings.extend(troubleshoot_rs::evaluate_rs_findings(
+    &app.data.replica_sets.items,
   ));
 
   // Future: findings.extend(troubleshoot_node::evaluate_node_findings(...));

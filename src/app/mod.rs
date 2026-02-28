@@ -26,6 +26,7 @@ pub(crate) mod svcs;
 pub(crate) mod troubleshoot;
 pub(crate) mod troubleshoot_pod;
 pub(crate) mod troubleshoot_pvc;
+pub(crate) mod troubleshoot_rs;
 mod utils;
 
 use anyhow::anyhow;
