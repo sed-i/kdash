@@ -127,7 +127,7 @@ fn draw_app_header(f: &mut Frame<'_>, app: &App, area: Rect) {
     .highlight_style(style_secondary(app.light_theme))
     .select(app.main_tabs.index);
 
-  f.render_widget(tabs, area);
+  f.render_widget(tabs, chunks[0]);
   draw_header_text(f, app, chunks[1]);
 }
 
