@@ -1,3 +1,14 @@
+//! Pod-specific troubleshooting checks.
+//!
+//! This module inspects cached pod state and produces [`DisplayFinding`]s for
+//! pods that are in an unhealthy or noteworthy phase.
+//!
+//! The checks are based on the Kubernetes pod lifecycle model.  Pod phase is a
+//! high-level summary of where a pod is in its lifecycle.
+//!
+//! References:
+//! - <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#podstatus-v1-core>
+
 use k8s_openapi::api::core::v1::PodCondition;
 
 use super::{
@@ -102,6 +113,8 @@ pub type PodCheck = fn(&KubePod) -> Option<Finding<PodFinding>>;
 // ---------------------------------------------------------------------------
 
 /// Detect pods in an unhealthy phase (`Failed`, `Unknown`, or `Pending`).
+/// References:
+/// - <https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase>
 fn check_pod_phase(pod: &KubePod) -> Option<Finding<PodFinding>> {
   let phase = pod_phase(pod);
 
