@@ -1,20 +1,20 @@
 use async_trait::async_trait;
 use kube::config::{Context, Kubeconfig, NamedContext};
 use ratatui::{
+  Frame,
   layout::{Constraint, Rect},
   widgets::{Cell, Row, Table},
-  Frame,
 };
 
-use super::{models::AppResource, ActiveBlock, App};
+use super::{ActiveBlock, App, models::AppResource};
 use crate::{
   network::Network,
   ui::{
+    HIGHLIGHT,
     utils::{
       layout_block_active, loading, style_highlight, style_primary, style_secondary,
       table_header_style,
     },
-    HIGHLIGHT,
   },
 };
 

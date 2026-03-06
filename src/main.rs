@@ -10,34 +10,33 @@ mod ui;
 
 use std::{
   fs::File,
-  io::{self, stdout, Stdout},
+  io::{self, Stdout, stdout},
   panic::{self, PanicHookInfo},
   sync::Arc,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use app::App;
 use banner::BANNER;
-use clap::{builder::PossibleValuesParser, Parser};
+use clap::{Parser, builder::PossibleValuesParser};
 use cmd::{CmdRunner, IoCmdEvent};
 use crossterm::{
   execute,
-  terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+  terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use event::Key;
 use k8s_openapi::chrono::{self};
-use log::{info, warn, LevelFilter, SetLoggerError};
+use log::{LevelFilter, SetLoggerError, info, warn};
 use network::{
-  get_client,
+  IoEvent, Network, get_client,
   stream::{IoStreamEvent, NetworkStream},
-  IoEvent, Network,
 };
 use ratatui::{
-  backend::{Backend, CrosstermBackend},
   Terminal,
+  backend::{Backend, CrosstermBackend},
 };
 use simplelog::{Config, WriteLogger};
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{Mutex, mpsc};
 
 /// kdash CLI
 #[derive(Parser, Debug)]
@@ -70,7 +69,9 @@ pub struct Cli {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-  openssl_probe::init_ssl_cert_env_vars();
+  unsafe {
+    openssl_probe::try_init_openssl_env_vars();
+  }
   panic::set_hook(Box::new(|info| {
     panic_hook(info);
   }));
@@ -302,7 +303,7 @@ fn panic_hook(info: &PanicHookInfo<'_>) {
 fn panic_hook(info: &PanicHookInfo<'_>) {
   use backtrace::Backtrace;
   use crossterm::style::Print;
-  use human_panic::{handle_dump, print_msg, Metadata};
+  use human_panic::{Metadata, handle_dump, print_msg};
   use log::error;
 
   let meta = Metadata::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))

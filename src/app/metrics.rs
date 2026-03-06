@@ -2,26 +2,25 @@ use anyhow::anyhow;
 use async_trait::async_trait;
 use k8s_openapi::api::core::v1::{Node, Pod};
 use kube::{
-  api::{ListParams, ObjectMeta},
   Api,
+  api::{ListParams, ObjectMeta},
 };
 use kubectl_view_allocations::{
-  extract_allocatable_from_nodes, extract_allocatable_from_pods,
+  Resource, extract_allocatable_from_nodes, extract_allocatable_from_pods,
   extract_utilizations_from_pod_metrics, make_qualifiers,
   metrics::{PodMetrics, Usage},
   qty::Qty,
   tree::provide_prefix,
-  Resource,
 };
 use ratatui::{
+  Frame,
   layout::{Constraint, Rect},
   widgets::{Cell, Row, Table},
-  Frame,
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::MutexGuard;
 
-use super::{models::AppResource, utils, ActiveBlock, App};
+use super::{ActiveBlock, App, models::AppResource, utils};
 use crate::{
   network::Network,
   ui::utils::{
@@ -233,7 +232,7 @@ impl AppResource for UtilizationResource {
 fn make_table_cell<'a>(oqty: &Option<Qty>, o100: &Option<Qty>) -> Cell<'a> {
   let txt = match oqty {
     None => "__".into(),
-    Some(ref qty) => match o100 {
+    Some(qty) => match o100 {
       None => format!("{}", qty.adjust_scale()),
       Some(q100) => format!("{} ({:.0}%)", qty.adjust_scale(), qty.calc_percentage(q100)),
     },

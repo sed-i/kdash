@@ -7,24 +7,24 @@ use k8s_openapi::{
   chrono::Utc,
 };
 use ratatui::{
+  Frame,
   layout::{Constraint, Rect},
   style::Style,
   widgets::{Cell, Row},
-  Frame,
 };
 
 use super::{
+  ActiveBlock, App,
   models::{AppResource, KubeResource},
   utils::{self, UNKNOWN},
-  ActiveBlock, App,
 };
 use crate::{
   network::Network,
   ui::utils::{
-    draw_describe_block, draw_resource_block, draw_yaml_block, get_describe_active,
-    get_resource_title, layout_block_top_border, loading, style_failure, style_primary,
-    style_secondary, style_success, title_with_dual_style, ResourceTableProps, COPY_HINT,
-    DESCRIBE_AND_YAML_HINT,
+    COPY_HINT, DESCRIBE_AND_YAML_HINT, ResourceTableProps, draw_describe_block,
+    draw_resource_block, draw_yaml_block, get_describe_active, get_resource_title,
+    layout_block_top_border, loading, style_failure, style_primary, style_secondary, style_success,
+    title_with_dual_style,
   },
 };
 
@@ -313,13 +313,12 @@ fn draw_containers_block(f: &mut Frame<'_>, app: &mut App, area: Rect) {
 }
 
 fn get_container_title<S: AsRef<str>>(app: &App, container_len: usize, suffix: S) -> String {
-  let title = get_resource_title(
+  get_resource_title(
     app,
     PODS_TITLE,
     format!("-> Containers [{}] {}", container_len, suffix.as_ref()).as_str(),
     app.data.pods.items.len(),
-  );
-  title
+  )
 }
 
 fn draw_logs_block(f: &mut Frame<'_>, app: &mut App, area: Rect) {
@@ -379,12 +378,12 @@ impl KubeContainer {
     init: bool,
   ) -> Self {
     let (mut ready, mut status, mut restarts) = ("false".to_string(), "<none>".to_string(), 0);
-    if let Some(c_stats) = c_stats_ref {
-      if let Some(c_stat) = c_stats.iter().find(|cs| cs.name == container.name) {
-        ready = c_stat.ready.to_string();
-        status = get_container_state(c_stat.state.clone());
-        restarts = c_stat.restart_count;
-      }
+    if let Some(c_stats) = c_stats_ref
+      && let Some(c_stat) = c_stats.iter().find(|cs| cs.name == container.name)
+    {
+      ready = c_stat.ready.to_string();
+      status = get_container_state(c_stat.state.clone());
+      restarts = c_stat.restart_count;
     }
 
     KubeContainer {
@@ -554,10 +553,10 @@ fn get_container_ports(ports_ref: &Option<Vec<ContainerPort>>) -> Option<String>
           port = format!("{}:", name);
         }
         port = format!("{}{}", port, c_port.container_port);
-        if let Some(protocol) = c_port.protocol.clone() {
-          if protocol != "TCP" {
-            port = format!("{}/{}", port, c_port.protocol.clone().unwrap());
-          }
+        if let Some(protocol) = c_port.protocol.clone()
+          && protocol != "TCP"
+        {
+          port = format!("{}/{}", port, protocol);
         }
         port
       })

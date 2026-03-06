@@ -65,7 +65,7 @@ use self::{
 };
 use super::{
   cmd::IoCmdEvent,
-  network::{stream::IoStreamEvent, IoEvent},
+  network::{IoEvent, stream::IoStreamEvent},
 };
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
@@ -496,36 +496,36 @@ impl App {
   pub async fn dispatch(&mut self, action: IoEvent) {
     // `is_loading` will be set to false again after the async action has finished in network/mod.rs
     self.is_loading = true;
-    if let Some(io_tx) = &self.io_tx {
-      if let Err(e) = io_tx.send(action).await {
-        self.is_loading = false;
-        self.handle_error(anyhow!(e));
-      };
-    }
+    if let Some(io_tx) = &self.io_tx
+      && let Err(e) = io_tx.send(action).await
+    {
+      self.is_loading = false;
+      self.handle_error(anyhow!(e));
+    };
   }
 
   // Send a stream event to the stream network thread
   pub async fn dispatch_stream(&mut self, action: IoStreamEvent) {
     // `is_loading` will be set to false again after the async action has finished in network/stream.rs
     self.is_loading = true;
-    if let Some(io_stream_tx) = &self.io_stream_tx {
-      if let Err(e) = io_stream_tx.send(action).await {
-        self.is_loading = false;
-        self.handle_error(anyhow!(e));
-      };
-    }
+    if let Some(io_stream_tx) = &self.io_stream_tx
+      && let Err(e) = io_stream_tx.send(action).await
+    {
+      self.is_loading = false;
+      self.handle_error(anyhow!(e));
+    };
   }
 
   // Send a cmd event to the cmd runner thread
   pub async fn dispatch_cmd(&mut self, action: IoCmdEvent) {
     // `is_loading` will be set to false again after the async action has finished in network/stream.rs
     self.is_loading = true;
-    if let Some(io_cmd_tx) = &self.io_cmd_tx {
-      if let Err(e) = io_cmd_tx.send(action).await {
-        self.is_loading = false;
-        self.handle_error(anyhow!(e));
-      };
-    }
+    if let Some(io_cmd_tx) = &self.io_cmd_tx
+      && let Err(e) = io_cmd_tx.send(action).await
+    {
+      self.is_loading = false;
+      self.handle_error(anyhow!(e));
+    };
   }
 
   pub fn set_contexts(&mut self, contexts: Vec<KubeContext>) {
@@ -740,7 +740,7 @@ impl App {
     }
 
     // make network requests only in intervals to avoid hogging up the network
-    if self.tick_count % self.tick_until_poll == 0 || self.is_routing {
+    if self.tick_count.is_multiple_of(self.tick_until_poll) || self.is_routing {
       // make periodic network calls based on active route and active block to avoid hogging
       match self.get_current_route().id {
         RouteId::Home => {
@@ -784,8 +784,8 @@ mod test_utils {
     apimachinery::pkg::apis::meta::v1::Time,
     chrono::{DateTime, Utc},
   };
-  use kube::{api::ObjectList, Resource};
-  use serde::{de::DeserializeOwned, Serialize};
+  use kube::{Resource, api::ObjectList};
+  use serde::{Serialize, de::DeserializeOwned};
 
   use super::models::KubeResource;
 

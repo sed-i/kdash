@@ -4,23 +4,23 @@ use k8s_openapi::{
   chrono::Utc,
 };
 use ratatui::{
+  Frame,
   layout::{Constraint, Rect},
   widgets::{Cell, Row},
-  Frame,
 };
 
 use super::{
+  ActiveBlock, App,
   models::{AppResource, KubeResource},
   utils::{self, UNKNOWN},
-  ActiveBlock, App,
 };
 use crate::{
   draw_resource_tab,
   network::Network,
   ui::utils::{
-    draw_describe_block, draw_resource_block, draw_yaml_block, get_describe_active,
-    get_resource_title, style_primary, title_with_dual_style, ResourceTableProps, COPY_HINT,
-    DESCRIBE_AND_YAML_HINT,
+    COPY_HINT, DESCRIBE_AND_YAML_HINT, ResourceTableProps, draw_describe_block,
+    draw_resource_block, draw_yaml_block, get_describe_active, get_resource_title, style_primary,
+    title_with_dual_style,
   },
 };
 
@@ -172,10 +172,10 @@ fn get_ports(s_ports: &Option<Vec<ServicePort>>) -> Option<String> {
           port = format!("{}:", name);
         }
         port = format!("{}{}►{}", port, s_port.port, s_port.node_port.unwrap_or(0));
-        if let Some(protocol) = s_port.protocol.clone() {
-          if protocol != "TCP" {
-            port = format!("{}/{}", port, s_port.protocol.clone().unwrap());
-          }
+        if let Some(protocol) = s_port.protocol.clone()
+          && protocol != "TCP"
+        {
+          port = format!("{}/{}", port, protocol);
         }
         port
       })

@@ -7,7 +7,7 @@ use regex::Regex;
 use serde_json::Value as JValue;
 use tokio::sync::Mutex;
 
-use crate::app::{self, models::ScrollableTxt, App, Cli};
+use crate::app::{self, App, Cli, models::ScrollableTxt};
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum IoCmdEvent {
@@ -195,7 +195,9 @@ mod tests {
     assert_eq!(
       get_info_by_regex(
         "echo",
-        &["Client: &version.Version{SemVer:\"v2.17.0\", GitCommit:\"a690bad98af45b015bd3da1a41f6218b1a451dbe\", GitTreeState:\"clean\"} \n Error: could not find tiller"],
+        &[
+          "Client: &version.Version{SemVer:\"v2.17.0\", GitCommit:\"a690bad98af45b015bd3da1a41f6218b1a451dbe\", GitTreeState:\"clean\"} \n Error: could not find tiller"
+        ],
         r"(v[0-9.]+)"
       ),
       Some("v2.17.0".into())

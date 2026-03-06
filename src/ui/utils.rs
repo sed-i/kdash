@@ -2,19 +2,19 @@ use std::{collections::BTreeMap, rc::Rc, sync::OnceLock};
 
 use glob_match::glob_match;
 use ratatui::{
+  Frame,
   layout::{Constraint, Direction, Layout, Rect},
   style::{Color, Modifier, Style},
   symbols,
   text::{Line, Span, Text},
   widgets::{Block, Borders, Paragraph, Row, Table, Wrap},
-  Frame,
 };
 use serde::Serialize;
 
 use super::HIGHLIGHT;
 use crate::app::{
-  models::{KubeResource, StatefulTable},
   ActiveBlock, App,
+  models::{KubeResource, StatefulTable},
 };
 // Utils
 
@@ -511,8 +511,8 @@ pub fn title_with_ns(title: &str, ns: &str, length: usize) -> String {
 #[cfg(test)]
 mod tests {
   use ratatui::{
-    backend::TestBackend, buffer::Buffer, layout::Position, style::Modifier, widgets::Cell,
-    Terminal,
+    Terminal, backend::TestBackend, buffer::Buffer, layout::Position, style::Modifier,
+    widgets::Cell,
   };
 
   use super::*;
@@ -594,13 +594,13 @@ mod tests {
       .unwrap();
 
     let mut expected = Buffer::with_lines(vec![
-        "Test-> yaml <y>─────────────────────────────────────────────────────────────────────────────────────",
-        "   Namespace                     Name                                 Data           Age            ",
-        "=> Test ns                       Test 1                               5              65h3m          ",
-        "   Test ns                       Test long name that should be trunca 3              65h3m          ",
-        "   Test ns long value check that test_long_name_that_should_be_trunca 6              65h3m          ",
-        "                                                                                                    ",
-      ]);
+      "Test-> yaml <y>─────────────────────────────────────────────────────────────────────────────────────",
+      "   Namespace                     Name                                 Data           Age            ",
+      "=> Test ns                       Test 1                               5              65h3m          ",
+      "   Test ns                       Test long name that should be trunca 3              65h3m          ",
+      "   Test ns long value check that test_long_name_that_should_be_trunca 6              65h3m          ",
+      "                                                                                                    ",
+    ]);
     // set row styles
     // First row heading style
     for col in 0..=99 {
@@ -727,13 +727,13 @@ mod tests {
       .unwrap();
 
     let mut expected = Buffer::with_lines(vec![
-        "Test-> yaml <y>─────────────────────────────────────────────────────────────────────────────────────",
-        "   Namespace                     Name                                 Data           Age            ",
-        "=> Test ns                       Test long name that should be trunca 3              65h3m          ",
-        "   Test ns long value check that test_long_name_that_should_be_trunca 6              65h3m          ",
-        "                                                                                                    ",
-        "                                                                                                    ",
-      ]);
+      "Test-> yaml <y>─────────────────────────────────────────────────────────────────────────────────────",
+      "   Namespace                     Name                                 Data           Age            ",
+      "=> Test ns                       Test long name that should be trunca 3              65h3m          ",
+      "   Test ns long value check that test_long_name_that_should_be_trunca 6              65h3m          ",
+      "                                                                                                    ",
+      "                                                                                                    ",
+    ]);
     // set row styles
     // First row heading style
     for col in 0..=99 {
@@ -860,13 +860,13 @@ mod tests {
       .unwrap();
 
     let mut expected = Buffer::with_lines(vec![
-        "Test-> yaml <y>─────────────────────────────────────────────────────────────────────────────────────",
-        "   Namespace                     Name                                 Data           Age            ",
-        "=> Test ns                       Test long name that should be trunca 3              65h3m          ",
-        "   Test ns long value check that test_long_name_that_should_be_trunca 6              65h3m          ",
-        "                                                                                                    ",
-        "                                                                                                    ",
-      ]);
+      "Test-> yaml <y>─────────────────────────────────────────────────────────────────────────────────────",
+      "   Namespace                     Name                                 Data           Age            ",
+      "=> Test ns                       Test long name that should be trunca 3              65h3m          ",
+      "   Test ns long value check that test_long_name_that_should_be_trunca 6              65h3m          ",
+      "                                                                                                    ",
+      "                                                                                                    ",
+    ]);
     // set row styles
     // First row heading style
     for col in 0..=99 {

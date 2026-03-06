@@ -1,17 +1,17 @@
 use async_trait::async_trait;
 use ratatui::{
+  Frame,
   layout::{Constraint, Rect},
   widgets::{Cell, Row},
-  Frame,
 };
 use strum::Display;
 
 use super::{
+  ActiveBlock, App,
   models::{AppResource, KubeResource},
   pods::KubePod,
   pvcs::KubePVC,
   replicasets::KubeReplicaSet,
-  ActiveBlock, App,
 };
 use k8s_openapi::api::apps::v1::ReplicaSet;
 use k8s_openapi::api::core::v1::{PersistentVolumeClaim, Pod};
@@ -21,9 +21,9 @@ mod pvc;
 mod rs;
 
 use crate::ui::utils::{
-  draw_describe_block, draw_resource_block, draw_yaml_block, get_describe_active,
-  get_resource_title, style_failure, style_primary, style_warning, title_with_dual_style,
-  ResourceTableProps, COPY_HINT, DESCRIBE_AND_YAML_HINT,
+  COPY_HINT, DESCRIBE_AND_YAML_HINT, ResourceTableProps, draw_describe_block, draw_resource_block,
+  draw_yaml_block, get_describe_active, get_resource_title, style_failure, style_primary,
+  style_warning, title_with_dual_style,
 };
 
 // ---------------------------------------------------------------------------
@@ -274,7 +274,7 @@ mod tests {
   use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 
   use crate::app::{
-    models::StatefulTable, pods::KubePod, pvcs::KubePVC, replicasets::KubeReplicaSet, Data,
+    Data, models::StatefulTable, pods::KubePod, pvcs::KubePVC, replicasets::KubeReplicaSet,
   };
 
   fn build_pod_with_phase(name: &str, phase: &str) -> KubePod {

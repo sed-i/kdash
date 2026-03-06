@@ -5,11 +5,11 @@ pub mod resource_tabs;
 pub mod utils;
 
 use ratatui::{
+  Frame,
   layout::{Alignment, Constraint, Rect},
   style::Modifier,
   text::{Line, Span, Text},
   widgets::{Block, Borders, Paragraph, Tabs, Wrap},
-  Frame,
 };
 
 use self::{
@@ -21,8 +21,8 @@ use self::{
   },
 };
 use crate::app::{
-  contexts::ContextResource, metrics::UtilizationResource, models::AppResource,
-  troubleshoot::TroubleshootResource, ActiveBlock, App, RouteId,
+  ActiveBlock, App, RouteId, contexts::ContextResource, metrics::UtilizationResource,
+  models::AppResource, troubleshoot::TroubleshootResource,
 };
 
 pub static HIGHLIGHT: &str = "=> ";

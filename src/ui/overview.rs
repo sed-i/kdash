@@ -1,9 +1,9 @@
 use ratatui::{
+  Frame,
   layout::{Constraint, Position, Rect},
   style::Style,
   text::{Line, Span, Text},
   widgets::{Block, Borders, Cell, LineGauge, Paragraph, Row, Table},
-  Frame,
 };
 
 use super::{
@@ -16,8 +16,8 @@ use super::{
 };
 use crate::{
   app::{
-    metrics::KubeNodeMetrics, models::AppResource, ns::NamespaceResource, ActiveBlock, App,
-    InputMode,
+    ActiveBlock, App, InputMode, metrics::KubeNodeMetrics, models::AppResource,
+    ns::NamespaceResource,
   },
   banner::BANNER,
 };

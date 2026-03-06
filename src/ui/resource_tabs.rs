@@ -1,18 +1,19 @@
 use ratatui::{
+  Frame,
   layout::{Constraint, Rect},
   text::{Line, Span},
   widgets::{List, ListItem, Tabs},
-  Frame,
 };
 
 use super::{
+  HIGHLIGHT,
   utils::{
     centered_rect, layout_block_default, style_default, style_highlight, style_secondary,
     vertical_chunks_with_margin,
   },
-  HIGHLIGHT,
 };
 use crate::app::{
+  ActiveBlock, App,
   configmaps::ConfigMapResource,
   cronjobs::CronJobResource,
   daemonsets::DaemonSetResource,
@@ -35,7 +36,6 @@ use crate::app::{
   statefulsets::StatefulSetResource,
   storageclass::StorageClassResource,
   svcs::SvcResource,
-  ActiveBlock, App,
 };
 
 pub fn draw_resource_tabs_block(f: &mut Frame<'_>, app: &mut App, area: Rect) {
@@ -151,11 +151,11 @@ fn draw_menu(
 #[cfg(test)]
 mod tests {
   use ratatui::{
+    Terminal,
     backend::TestBackend,
     buffer::Buffer,
     layout::Position,
     style::{Modifier, Style},
-    Terminal,
   };
 
   use super::*;
@@ -185,14 +185,14 @@ mod tests {
       .unwrap();
 
     let mut expected = Buffer::with_lines(vec![
-        "┌ Resources ───────────────────────────────────────────────────────────────────────────────────────┐",
-        "│ Pods <1> │ Services <2> │ Nodes <3> │ ConfigMaps <4> │ StatefulSets <5> │ ReplicaSets <6> │ Deplo│",
-        "│                                                                                                  │",
-        "│ Pods (ns: all) [1] | Containers <enter> | describe <d> | yaml <y> ───────────────────────────────│",
-        "│   Namespace                Name                         Ready      Status    Restarts   Age      │",
-        "│=> pod namespace test       pod name test                0/2        Failed    0          6h52m    │",
-        "└──────────────────────────────────────────────────────────────────────────────────────────────────┘",
-      ]);
+      "┌ Resources ───────────────────────────────────────────────────────────────────────────────────────┐",
+      "│ Pods <1> │ Services <2> │ Nodes <3> │ ConfigMaps <4> │ StatefulSets <5> │ ReplicaSets <6> │ Deplo│",
+      "│                                                                                                  │",
+      "│ Pods (ns: all) [1] | Containers <enter> | describe <d> | yaml <y> ───────────────────────────────│",
+      "│   Namespace                Name                         Ready      Status    Restarts   Age      │",
+      "│=> pod namespace test       pod name test                0/2        Failed    0          6h52m    │",
+      "└──────────────────────────────────────────────────────────────────────────────────────────────────┘",
+    ]);
     // set row styles
     // First row heading style
     for col in 0..=99 {

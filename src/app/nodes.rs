@@ -5,29 +5,29 @@ use k8s_openapi::{
   chrono::Utc,
 };
 use kube::{
+  Api,
   api::{ListParams, ObjectList, TypeMeta},
   core::ListMeta,
-  Api,
 };
 use ratatui::{
+  Frame,
   layout::{Constraint, Rect},
   widgets::{Cell, Row},
-  Frame,
 };
 use tokio::sync::MutexGuard;
 
 use super::{
+  ActiveBlock, App,
   metrics::{self, KubeNodeMetrics},
   models::{AppResource, KubeResource},
   utils::{self, UNKNOWN},
-  ActiveBlock, App,
 };
 use crate::{
   network::Network,
   ui::utils::{
-    draw_describe_block, draw_resource_block, draw_yaml_block, get_cluster_wide_resource_title,
-    get_describe_active, style_failure, style_primary, title_with_dual_style, ResourceTableProps,
-    COPY_HINT, DESCRIBE_AND_YAML_HINT,
+    COPY_HINT, DESCRIBE_AND_YAML_HINT, ResourceTableProps, draw_describe_block,
+    draw_resource_block, draw_yaml_block, get_cluster_wide_resource_title, get_describe_active,
+    style_failure, style_primary, title_with_dual_style,
   },
 };
 

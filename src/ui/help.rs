@@ -1,15 +1,15 @@
 use ratatui::{
+  Frame,
   layout::{Constraint, Rect},
   widgets::{Row, Table},
-  Frame,
 };
 
 use super::{
+  HIGHLIGHT,
   utils::{
     layout_block_active_span, style_highlight, style_primary, style_secondary,
     title_with_dual_style, vertical_chunks,
   },
-  HIGHLIGHT,
 };
 use crate::app::App;
 
@@ -53,11 +53,11 @@ pub fn draw_help(f: &mut Frame<'_>, app: &mut App, area: Rect) {
 #[cfg(test)]
 mod tests {
   use ratatui::{
+    Terminal,
     backend::TestBackend,
     buffer::Buffer,
     layout::Position,
     style::{Modifier, Style},
-    Terminal,
   };
 
   use super::*;
@@ -77,14 +77,14 @@ mod tests {
       .unwrap();
 
     let mut expected = Buffer::with_lines(vec![
-        "┌ Help | close <esc> ──────────────────────────────────────────────────────────────────────────────┐",
-        "│   Key                                               Action                                  Conte│",
-        "│=> <Ctrl+c> | <q>                                    Quit                                    Gener│",
-        "│   <Esc>                                             Close child page/Go back                Gener│",
-        "│   <?>                                               Help page                               Gener│",
-        "│   <Enter>                                           Select table row                        Gener│",
-        "└──────────────────────────────────────────────────────────────────────────────────────────────────┘",
-      ]);
+      "┌ Help | close <esc> ──────────────────────────────────────────────────────────────────────────────┐",
+      "│   Key                                               Action                                  Conte│",
+      "│=> <Ctrl+c> | <q>                                    Quit                                    Gener│",
+      "│   <Esc>                                             Close child page/Go back                Gener│",
+      "│   <?>                                               Help page                               Gener│",
+      "│   <Enter>                                           Select table row                        Gener│",
+      "└──────────────────────────────────────────────────────────────────────────────────────────────────┘",
+    ]);
     // set row styles
     // First row heading style
     for col in 0..=99 {

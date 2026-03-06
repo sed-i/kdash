@@ -1,27 +1,27 @@
 use anyhow::anyhow;
 use async_trait::async_trait;
 use k8s_openapi::api::core::v1::Namespace;
-use kube::{api::ListParams, Api};
+use kube::{Api, api::ListParams};
 use ratatui::{
+  Frame,
   layout::{Constraint, Rect},
   widgets::{Cell, Row, Table},
-  Frame,
 };
 
 use super::{
+  ActiveBlock, App,
   key_binding::DEFAULT_KEYBINDING,
   models::{AppResource, KubeResource},
   utils::{self, UNKNOWN},
-  ActiveBlock, App,
 };
 use crate::{
   network::Network,
   ui::{
+    HIGHLIGHT,
     utils::{
       filter_by_resource_name, layout_block_default, loading, style_highlight, style_primary,
       style_secondary, table_header_style,
     },
-    HIGHLIGHT,
   },
 };
 

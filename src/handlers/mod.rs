@@ -5,11 +5,11 @@ use tui_input::backend::crossterm::EventHandler;
 
 use crate::{
   app::{
+    ActiveBlock, App, InputMode, Route, RouteId,
     key_binding::DEFAULT_KEYBINDING,
     models::{KubeResource, Scrollable, ScrollableTxt, StatefulTable},
     secrets::KubeSecret,
     troubleshoot::ResourceKind,
-    ActiveBlock, App, InputMode, Route, RouteId,
   },
   cmd::IoCmdEvent,
   event::Key,
@@ -409,53 +409,51 @@ async fn handle_route_events(key: Key, app: &mut App) {
           }
         }
         ActiveBlock::More => {
-          if key == DEFAULT_KEYBINDING.submit.key {
-            if let Some((_title, active_block)) = app
+          if key == DEFAULT_KEYBINDING.submit.key
+            && let Some((_title, active_block)) = app
               .more_resources_menu
               .state
               .selected()
               .map(|i| app.more_resources_menu.items[i].clone())
-            {
-              app.push_navigation_route(Route {
-                id: RouteId::Home,
-                active_block,
-              });
-            }
+          {
+            app.push_navigation_route(Route {
+              id: RouteId::Home,
+              active_block,
+            });
           }
         }
         ActiveBlock::DynamicView => {
-          if key == DEFAULT_KEYBINDING.submit.key {
-            if let Some((title, active_block)) = app
+          if key == DEFAULT_KEYBINDING.submit.key
+            && let Some((title, active_block)) = app
               .dynamic_resources_menu
               .state
               .selected()
               .map(|i| app.dynamic_resources_menu.items[i].clone())
-            {
-              app.push_navigation_route(Route {
-                id: RouteId::Home,
-                active_block,
-              });
-              let selected = app.data.dynamic_kinds.iter().find(|&it| it.kind == title);
-              app.data.selected.dynamic_kind = selected.cloned();
-              app.data.dynamic_resources.set_items(vec![]);
-            }
+          {
+            app.push_navigation_route(Route {
+              id: RouteId::Home,
+              active_block,
+            });
+            let selected = app.data.dynamic_kinds.iter().find(|&it| it.kind == title);
+            app.data.selected.dynamic_kind = selected.cloned();
+            app.data.dynamic_resources.set_items(vec![]);
           }
         }
         ActiveBlock::DynamicResource => {
-          if let Some(dynamic_res) = app.data.selected.dynamic_kind.as_ref() {
-            if let Some(res) = handle_block_action(key, &app.data.dynamic_resources) {
-              let _ok = handle_describe_decode_or_yaml_action(
-                key,
-                app,
-                &res,
-                IoCmdEvent::GetDescribe {
-                  kind: dynamic_res.kind.to_owned(),
-                  value: res.name.to_owned(),
-                  ns: res.namespace.to_owned(),
-                },
-              )
-              .await;
-            }
+          if let Some(dynamic_res) = app.data.selected.dynamic_kind.as_ref()
+            && let Some(res) = handle_block_action(key, &app.data.dynamic_resources)
+          {
+            let _ok = handle_describe_decode_or_yaml_action(
+              key,
+              app,
+              &res,
+              IoCmdEvent::GetDescribe {
+                kind: dynamic_res.kind.to_owned(),
+                value: res.name.to_owned(),
+                ns: res.namespace.to_owned(),
+              },
+            )
+            .await;
           }
         }
         ActiveBlock::CronJobs => {
@@ -710,55 +708,55 @@ async fn handle_route_events(key: Key, app: &mut App) {
             })
             .await;
         }
-      } else if key == DEFAULT_KEYBINDING.resource_yaml.key {
-        if let Some(finding) = handle_block_action(key, &app.data.troubleshoot_findings) {
-          let yaml = match finding.resource_kind {
-            ResourceKind::Pod => app
-              .data
-              .pods
-              .items
-              .iter()
-              .find(|p| {
-                p.name == finding.describe_name
-                  && finding
-                    .describe_namespace
-                    .as_deref()
-                    .is_none_or(|ns| p.namespace == ns)
-              })
-              .map(|p| p.resource_to_yaml())
-              .unwrap_or_default(),
-            ResourceKind::Pvc => app
-              .data
-              .pvcs
-              .items
-              .iter()
-              .find(|pvc| {
-                pvc.name == finding.describe_name
-                  && finding
-                    .describe_namespace
-                    .as_deref()
-                    .is_none_or(|ns| pvc.namespace == ns)
-              })
-              .map(|pvc| pvc.resource_to_yaml())
-              .unwrap_or_default(),
-            ResourceKind::ReplicaSet => app
-              .data
-              .replica_sets
-              .items
-              .iter()
-              .find(|rs| {
-                rs.name == finding.describe_name
-                  && finding
-                    .describe_namespace
-                    .as_deref()
-                    .is_none_or(|ns| rs.namespace == ns)
-              })
-              .map(|rs| rs.resource_to_yaml())
-              .unwrap_or_default(),
-          };
-          app.data.describe_out = ScrollableTxt::with_string(yaml);
-          app.push_navigation_stack(RouteId::Troubleshoot, ActiveBlock::Yaml);
-        }
+      } else if key == DEFAULT_KEYBINDING.resource_yaml.key
+        && let Some(finding) = handle_block_action(key, &app.data.troubleshoot_findings)
+      {
+        let yaml = match finding.resource_kind {
+          ResourceKind::Pod => app
+            .data
+            .pods
+            .items
+            .iter()
+            .find(|p| {
+              p.name == finding.describe_name
+                && finding
+                  .describe_namespace
+                  .as_deref()
+                  .is_none_or(|ns| p.namespace == ns)
+            })
+            .map(|p| p.resource_to_yaml())
+            .unwrap_or_default(),
+          ResourceKind::Pvc => app
+            .data
+            .pvcs
+            .items
+            .iter()
+            .find(|pvc| {
+              pvc.name == finding.describe_name
+                && finding
+                  .describe_namespace
+                  .as_deref()
+                  .is_none_or(|ns| pvc.namespace == ns)
+            })
+            .map(|pvc| pvc.resource_to_yaml())
+            .unwrap_or_default(),
+          ResourceKind::ReplicaSet => app
+            .data
+            .replica_sets
+            .items
+            .iter()
+            .find(|rs| {
+              rs.name == finding.describe_name
+                && finding
+                  .describe_namespace
+                  .as_deref()
+                  .is_none_or(|ns| rs.namespace == ns)
+            })
+            .map(|rs| rs.resource_to_yaml())
+            .unwrap_or_default(),
+        };
+        app.data.describe_out = ScrollableTxt::with_string(yaml);
+        app.push_navigation_stack(RouteId::Troubleshoot, ActiveBlock::Yaml);
       }
     }
     RouteId::HelpMenu => { /* Do nothing */ }
@@ -847,11 +845,7 @@ fn copy_to_clipboard(content: String, app: &mut App) {
 
 /// inverse direction for natural scrolling on mouse and keyboard
 fn inverse_dir(up: bool, is_mouse: bool) -> bool {
-  if is_mouse {
-    !up
-  } else {
-    up
-  }
+  if is_mouse { !up } else { up }
 }
 
 #[cfg(test)]
@@ -997,16 +991,20 @@ mod tests {
       .await
     );
 
-    assert!(app
-      .data
-      .describe_out
-      .get_txt()
-      .contains(format!("key1: {}", DATA1).as_str()));
-    assert!(app
-      .data
-      .describe_out
-      .get_txt()
-      .contains(format!("key2: {}", DATA2).as_str()));
+    assert!(
+      app
+        .data
+        .describe_out
+        .get_txt()
+        .contains(format!("key1: {}", DATA1).as_str())
+    );
+    assert!(
+      app
+        .data
+        .describe_out
+        .get_txt()
+        .contains(format!("key2: {}", DATA2).as_str())
+    );
   }
 
   #[tokio::test]

@@ -1,22 +1,23 @@
 use async_trait::async_trait;
 use k8s_openapi::{api::core::v1::Event, chrono::Utc};
 use ratatui::{
+  Frame,
   layout::{Constraint, Rect},
   widgets::{Cell, Row},
-  Frame,
 };
 
 use super::{
+  ActiveBlock, App,
   models::{AppResource, KubeResource},
-  utils, ActiveBlock, App,
+  utils,
 };
 use crate::{
   draw_resource_tab,
   network::Network,
   ui::utils::{
-    draw_describe_block, draw_resource_block, draw_yaml_block, get_describe_active,
-    get_resource_title, style_primary, title_with_dual_style, ResourceTableProps, COPY_HINT,
-    DESCRIBE_YAML_AND_ESC_HINT,
+    COPY_HINT, DESCRIBE_YAML_AND_ESC_HINT, ResourceTableProps, draw_describe_block,
+    draw_resource_block, draw_yaml_block, get_describe_active, get_resource_title, style_primary,
+    title_with_dual_style,
   },
 };
 

@@ -2,11 +2,11 @@ use std::collections::VecDeque;
 
 use async_trait::async_trait;
 use ratatui::{
+  Frame,
   layout::Rect,
   style::{Modifier, Style},
   text::Span,
   widgets::{Block, List, ListItem, ListState, TableState},
-  Frame,
 };
 use serde::Serialize;
 
@@ -152,10 +152,10 @@ impl<T> Scrollable for StatefulTable<T> {
   }
 
   fn scroll_up(&mut self, decrement: usize) {
-    if let Some(i) = self.state.selected() {
-      if i != 0 {
-        self.state.select(Some(i.saturating_sub(decrement)));
-      }
+    if let Some(i) = self.state.selected()
+      && i != 0
+    {
+      self.state.select(Some(i.saturating_sub(decrement)));
     }
   }
 }
@@ -314,11 +314,11 @@ impl LogsState {
         .skip(lines_to_skip)
         .flat_map(|r| {
           // See if we can use a cached wrapped line
-          if let Some(wrapped) = &r.1 {
-            if wrapped.1 as usize == logs_area_width {
-              wrapped_lines_len += wrapped.0.len();
-              return wrapped.0.clone();
-            }
+          if let Some(wrapped) = &r.1
+            && wrapped.1 as usize == logs_area_width
+          {
+            wrapped_lines_len += wrapped.0.len();
+            return wrapped.0.clone();
           }
 
           // If not, wrap the line and cache it
@@ -400,10 +400,10 @@ impl Scrollable for LogsState {
 mod tests {
   use k8s_openapi::api::core::v1::Namespace;
   use kube::api::ObjectMeta;
-  use ratatui::{backend::TestBackend, buffer::Buffer, layout::Position, Terminal};
+  use ratatui::{Terminal, backend::TestBackend, buffer::Buffer, layout::Position};
 
   use super::*;
-  use crate::app::{ns::KubeNs, ActiveBlock, RouteId};
+  use crate::app::{ActiveBlock, RouteId, ns::KubeNs};
 
   #[test]
   fn test_kube_resource() {
